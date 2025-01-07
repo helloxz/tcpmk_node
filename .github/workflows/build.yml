@@ -10,14 +10,14 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: debian-12
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v4
       with:
         go-version: '1.23.2'  # 使用 Go 1.23.2 版本
 
@@ -39,7 +39,7 @@ jobs:
         zip -r tcpmk_node-release.zip package/*  # 打包成 zip
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: release-package
         path: |
