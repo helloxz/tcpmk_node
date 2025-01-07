@@ -1,0 +1,96 @@
+package api
+
+import (
+	"fmt"
+	"net"
+	"tcpmk_node/utils"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/pixelbender/go-traceroute/traceroute"
+)
+
+func Traceroute(c *gin.Context) {
+	// 设置适当的响应头以支持流式传输
+	// 设置响应header头
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	fmt.Println("dsdsd")
+
+	// 获取用户输入的主机名
+	host := c.DefaultPostForm("host", "")
+	fmt.Println(host)
+	// 判断主机名是否合法
+	if !utils.IsValidIPOrDomain(host) {
+		c.SSEvent("close", "Invalid host")
+		c.Writer.Flush() // 添加这一行来刷新缓冲区
+		return
+	}
+
+	// 将主机名解析为IPv4地址
+	ip, err := utils.ResolveIPv4(host)
+	if err != nil {
+		// 解析失败了
+		c.SSEvent("close", "Failed to resolve host")
+		return
+	}
+	fmt.Println(ip)
+	parsedIP := net.ParseIP(ip)
+	fmt.Println(parsedIP)
+	if parsedIP == nil {
+		// 不是有效的IP
+		c.SSEvent("close", "Invalid IP address")
+		return
+	}
+
+	hops, err := traceroute.Trace(parsedIP)
+	if err != nil {
+		// 跟踪失败
+		c.SSEvent("close", "Failed to trace route")
+		return
+	}
+
+	// 遍历每个跳跃并逐个发送
+	for _, h := range hops {
+		for _, n := range h.Nodes {
+			ipInfo, err := ParseIP2Location(n.IP.String())
+			if err != nil {
+				ipInfo = IPInfo{
+					Country: "Unknown",
+					Region:  "Unknown",
+					City:    "Unknown",
+				}
+			}
+
+			// 拼接得到address
+			address := fmt.Sprintf("%s %s %s", ipInfo.Country, ipInfo.Region, ipInfo.City)
+
+			// 计算总延迟
+			total := time.Duration(0)
+			for _, rtt := range n.RTT {
+				total += rtt
+			}
+
+			// 计算平均延迟
+			average := time.Duration(0)
+			if len(n.RTT) > 0 {
+				average = total / time.Duration(len(n.RTT))
+				average = average.Round(time.Millisecond) // 去掉小数点
+			}
+
+			// 构建输出字符串
+			output := n.IP.String() + "," + address + "," + average.String()
+
+			// 写入响应
+			c.SSEvent("data", output)
+
+			// 刷新缓冲区，确保客户端立即接收
+			c.Writer.Flush() // 添加这一行来刷新缓冲区
+		}
+	}
+
+	// 可选：发送完成标志
+	c.SSEvent("close", "Stream finished")
+	c.Writer.Flush() // 添加这一行来刷新缓冲区
+}

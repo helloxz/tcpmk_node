@@ -1,0 +1,47 @@
+name: Build and Package
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.23.2'  # 使用 Go 1.23.2 版本
+
+    - name: Build
+      run: go build -o tcpmk_node -ldflags "-w" main.go  # 编译命令
+
+    - name: Create package directory
+      run: mkdir -p package
+
+    - name: Copy files to package directory
+      run: |
+        cp tcpmk_node package/  # 复制二进制文件
+        cp default.toml package/  # 复制配置文件
+        cp -r data package/  # 复制 data 目录
+
+    - name: Package files
+      run: |
+        tar -czvf tcpmk_node-release.tar.gz -C package .  # 打包成 tar.gz
+        zip -r tcpmk_node-release.zip package/*  # 打包成 zip
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: release-package
+        path: |
+          tcpmk_node-release.tar.gz
+          tcpmk_node-release.zip

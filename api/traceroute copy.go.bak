@@ -1,0 +1,97 @@
+package api
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"net/http"
+	"tcpmk_node/utils"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/pixelbender/go-traceroute/traceroute"
+)
+
+func Traceroute(c *gin.Context) {
+	// 设置适当的响应头以支持流式传输
+	// 设置响应header头
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+
+	// 获取用户输入的主机名
+	host := c.DefaultQuery("host", "")
+
+	// 将主机名解析为IPv4地址
+	ip, err := utils.ResolveIPv4(host)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid host")
+		return
+	}
+
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		c.String(http.StatusBadRequest, "Invalid IP address")
+		return
+	}
+
+	// hops, err := traceroute.Trace(parsedIP)
+	// if err != nil {
+	// 	log.Println("Traceroute error:", err)
+	// 	c.String(http.StatusInternalServerError, "Traceroute failed")
+	// 	return
+	// }
+
+	// 创建带超时的上下文（例如60秒）
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	// 调用 Trace 方法，并提供一个处理函数
+	_ = traceroute.DefaultTracer.Trace(ctx, net.ParseIP(ip), func(r *traceroute.Reply) {
+		// fmt.Printf("收到回复：IP=%v, RTT=%v, 跳数=%d\n", r.IP, r.RTT, r.Hops)
+		ipInfo, err := ParseIP2Location(r.IP.String())
+		if err != nil {
+			ipInfo = IPInfo{
+				Country: "Unknown",
+				Region:  "Unknown",
+				City:    "Unknown",
+			}
+		}
+
+		// 拼接得到address
+		address := fmt.Sprintf("%s %s %s", ipInfo.Country, ipInfo.Region, ipInfo.City)
+		// 获取平均延迟
+		//  := calculateAverageRTT(r.RTT)
+		output := r.IP.String() + "," + address
+		// 写入响应
+		c.SSEvent("data", output)
+
+		// 刷新缓冲区，确保客户端立即接收
+		c.Writer.Flush() // 添加这一行来刷新缓冲区
+	})
+
+	// 处理可能的错误
+	// if err != nil && err != context.Canceled && err != context.DeadlineExceeded {
+	// 	log.Fatal(err)
+	// }
+
+	// 遍历每个跳跃并逐个发送
+
+	// 可选：发送完成标志
+	c.SSEvent("close", "Stream finished")
+	c.Writer.Flush() // 添加这一行来刷新缓冲区
+}
+
+// 计算平均延迟，并返回字符串
+func calculateAverageRTT(rtt []time.Duration) string {
+	total := time.Duration(0)
+	for _, v := range rtt {
+		total += v
+	}
+	average := time.Duration(0)
+	if len(rtt) > 0 {
+		average = total / time.Duration(len(rtt))
+		average = average.Round(time.Millisecond)
+	}
+	return average.String()
+}

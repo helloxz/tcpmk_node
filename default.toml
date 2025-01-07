@@ -1,0 +1,6 @@
+[server]
+port = 5081
+mode = "release"
+
+[app]
+token = ""
