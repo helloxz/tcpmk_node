@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: debian-12
+    runs-on: debian-11
 
     steps:
     - name: Checkout code
