@@ -10,7 +10,7 @@ func CorsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 判断路由是否是/api/*开头的
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") || strings.HasPrefix(c.Request.URL.Path, "/page/") {
-			c.Header("Access-Control-Allow-Headers", "Content-Type, AccessToken, X-CSRF-Token, Authorization, Token,X-Auth-Token")
+			c.Header("Access-Control-Allow-Headers", "Content-Type, AccessToken, X-CSRF-Token, Authorization, Token,X-Token")
 			c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, HEAD,OPTION")
 			// c.Header("Access-Control-Allow-Origin", "*")
 			if c.Writer.Header().Get("Access-Control-Allow-Origin") == "" {

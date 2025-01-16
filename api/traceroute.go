@@ -63,8 +63,19 @@ func Traceroute(c *gin.Context) {
 			continue
 		}
 		// fmt.Printf("%d\t%s\t", result.Hop, result.IP)
-		// 解析IP得到归属地
-		address, _ := ParseIP2Location(result.IP.String())
+		// 解析IP得到归属地,判断是否是国内IP
+		var address IPInfo
+		var area string
+		if utils.IsIPInCN(result.IP.String()) && utils.GetUserLang(c) == "zh" {
+			// 国内IP则用纯真接口解析
+			address, _ = ParseQQwryNew(result.IP.String())
+			area = address.Country + "/" + address.Region + "/" + address.City + "/" + address.ISP
+		} else {
+			// 国外接口用ip2location解析
+			address, _ = ParseIP2Location(result.IP.String())
+			area = address.City + "," + address.Region + "," + address.Country
+		}
+
 		// 获取时间
 		// 拼接为字符串
 		var formattedString string
@@ -74,7 +85,7 @@ func Traceroute(c *gin.Context) {
 			formattedString = fmt.Sprintf("%.0fms", rttSeconds)
 		}
 		// 拼接归属地
-		output := result.IP.String() + "," + address.Country + " " + address.Region + " " + address.City + "," + formattedString
+		output := result.IP.String() + "|" + area + "|" + formattedString
 		// 可选：发送完成标志
 		c.SSEvent("data", output)
 		c.Writer.Flush() // 添加这一行来刷新缓冲区

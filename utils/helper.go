@@ -5,7 +5,10 @@ import (
 	"math/rand"
 	"net"
 	"regexp"
+	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 // ResolveIPv4 解析域名的 IPv4 地址
@@ -81,4 +84,18 @@ func RandStr(n int) string {
 	}
 
 	return string(result)
+}
+
+// 获取用户浏览器语言
+func GetUserLang(c *gin.Context) string {
+	acceptLanguage := c.Request.Header.Get("Accept-Language")
+	// 将 Accept-Language 转换为小写，方便匹配
+	acceptLanguageLower := strings.ToLower(acceptLanguage)
+
+	// 判断是否包含 "zh"
+	if strings.Contains(acceptLanguageLower, "zh") {
+		return "zh"
+	}
+	// 默认返回 "en"
+	return "en"
 }

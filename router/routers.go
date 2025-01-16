@@ -20,6 +20,11 @@ func Start() {
 	r.Use(middleware.CorsMiddleware())
 	r.POST("/api/traceroute", middleware.Auth(), api.Traceroute)
 	r.POST("/api/icmp/ping", middleware.Auth(), api.IcmpPing)
+	r.GET("/ping", api.Pong)
+	// 返回APP信息
+	r.GET("/api/appinfo", middleware.Auth(), api.Appinfo)
+	// 升级接口
+	r.GET("/api/upgrade", middleware.Auth(), api.Upgrade)
 
 	// r.GET("/test", api.Test)
 

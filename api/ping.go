@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"strconv"
 	"tcpmk_node/utils"
 	"time"
@@ -18,9 +19,14 @@ type icmpinfo struct {
 	PingCount  int    `json:"ping_count"`
 	Host       string `json:"host"`
 	IP         string `json:"ip"`
+	Area       string `json:"area"`
 }
 
 func IcmpPing(c *gin.Context) {
+	// 获取所有请求头并打印
+	// fmt.Println(c.Request.Header)
+	// fmt.Println(c.Request.Host)
+
 	// 获取用户输入的IP
 	host := c.DefaultPostForm("host", "")
 	// 获取ping的次数
@@ -84,7 +90,7 @@ func IcmpPing(c *gin.Context) {
 	pinger.Timeout = 11 * time.Second
 	err = pinger.Run() // Blocks until finished.
 	if err != nil {
-		// fmt.Println(err)
+		fmt.Println(err)
 		c.JSON(200, gin.H{
 			"code": 500,
 			"msg":  "Running failed!",
@@ -106,6 +112,26 @@ func IcmpPing(c *gin.Context) {
 	info.PingCount = pinger.Count
 	info.Host = host
 	info.IP = ip
+	// 查询IP所在地区，判断是否是国内IP
+	var ipArea IPInfo
+	// 国内IP，且用户语言为中文
+	if utils.IsIPInCN(ip) && utils.GetUserLang(c) == "zh" {
+		// 如果是国内IP，则用纯真接口解析
+		ipArea, err = ParseQQwryNew(ip)
+		info.Area = ipArea.Country + "/" + ipArea.Region + "/" + ipArea.City + "/" + ipArea.ISP
+	} else {
+		// 如果是国外IP，则用IP2Location解析
+		ipArea, err = ParseIP2Location(ip)
+		info.Area = ipArea.City + "," + ipArea.Region + "," + ipArea.Country
+	}
+
+	if err != nil {
+		c.JSON(200, gin.H{
+			"code": 500,
+			"msg":  "Failed to get IP area",
+			"data": "",
+		})
+	}
 
 	// 获取丢包率
 	c.JSON(200, gin.H{

@@ -9,12 +9,12 @@ import (
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 从 Header 中获取 X-Auth-Token
-		token := c.GetHeader("X-Auth-Token")
+		token := c.GetHeader("X-Token")
 		if token == "" {
 			// 如果 Header 中没有 X-Auth-Token，返回 401 未授权错误
 			c.JSON(200, gin.H{
 				"code": 401,
-				"msg":  "X-Auth-Token header is required",
+				"msg":  "X-Token header is required",
 				"data": "",
 			})
 			c.Abort() // 终止后续处理
